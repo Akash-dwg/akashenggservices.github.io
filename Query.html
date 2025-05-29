@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Service Query</title>
+  <link rel="stylesheet" href="Akash.css" />
+</head>
+<body>
+  <div id="query-form">
+    <h2>Submit a Service Query</h2>
+    <form id="service-query-form">
+      <input type="text" name="name" placeholder="Your Name" required />
+      <input type="email" name="email" placeholder="Your Email" required />
+      <input type="text" name="company" placeholder="Company Name" />
+
+      <select name="country" required>
+        <option value="">-- Select Country --</option>
+        <option value="India">India</option>
+        <option value="USA">USA</option>
+        <option value="Germany">Germany</option>
+        <option value="UK">UK</option>
+        <option value="Other">Other</option>
+      </select>
+
+      <select name="service" required>
+        <option value="">-- Select Service --</option>
+        <option value="2D CAD Drawing">2D CAD Drawing</option>
+        <option value="3D Modeling">3D Modeling</option>
+        <option value="Blueprint Drafting">Blueprint Drafting</option>
+        <option value="Assembly Drawing">Assembly Drawing</option>
+        <option value="Custom Design">Custom Design</option>
+      </select>
+
+      <textarea name="message" rows="4" placeholder="Describe your project or query here..."></textarea>
+
+      <button type="submit">Submit Query</button>
+      <p><a href="Akash.HTML">Back to Home</a></p>
+    </form>
+  </div>
+  <script>
+    document.getElementById("service-query-form").addEventListener("submit", function (e) {
+      e.preventDefault();
+      alert("Your query has been submitted. We'll get back to you soon!");
+      this.reset();
+    });
+  </script>
+</body>
+</html>

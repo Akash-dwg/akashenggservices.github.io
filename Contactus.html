@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Contact Us</title>
+    <link rel="stylesheet" href="Akash.css">
+</head>
+<body>
+    <header>Contact Us</header>
+    <a href="Akash.HTML">Home</a>
+    <section id="contact">
+        <h2>Please feel free to Reach Us</h2>
+        <!-- modify this form HTML and place wherever you want your form -->
+    <form
+    action="https://formspree.io/f/mjkwddba"
+    method="POST"
+    > 
+    <label>Name:</label>
+          <input type="text" name="name" required />
+    <label>
+      Your email:
+      <input type="email" name="email">
+    </label>
+    <label>Contact Number</label>
+    <input type="tel" name="phone" pattern="[0-9]{10}" placeholder="10-digit number" required />
+    <label>
+      Your message:
+      <textarea name="message" placeholder="please share your reuirement"></textarea>
+    </label>
+    <!-- your other form fields go here -->
+    <button type="submit">Send</button>
+    </form id="contact-form">
+      </section>
+</body>
+</html>
