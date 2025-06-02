@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Login to Request Drawing</title>
+  <link rel="stylesheet" href="Akash.css" />
+</head>
+<body>
+  <h1>Request Access</h1>
+
+  <form action="https://formspree.io/f/mjkwddba" method="POST">
+    <input type="text" name="name" placeholder="Your Name" required />
+    <input type="email" name="email" placeholder="Your Email" required />
+    <input type="tel" name="phone" pattern="[0-9]{10}" placeholder="10-digit number" required />
+    <textarea name="message" placeholder="Which drawing do you need?" rows="4"></textarea>
+    <button type="submit">Request Drawing</button>
+  </form>
+
+  <p><a href="drawings.html">← Back to Drawings</a></p>
+</body>
+</html>
