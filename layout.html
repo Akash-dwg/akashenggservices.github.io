@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Plate Cutting Layout Tool</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    input { margin: 4px; }
+    button { margin: 6px; padding: 6px 12px; cursor: pointer; }
+    canvas { border: 2px solid #333; margin-top: 20px; background: #f8f8f8; }
+    #plateSummary { margin-top: 10px; font-weight: bold; }
+  </style>
+</head>
+<body>
+  <a href="index.html">← Home</a>
+  <h2>Plate Cutting Layout Tool</h2>
+
+  <label>Plate Width: <input type="number" id="plateW" value="500"></label>
+  <label>Plate Height: <input type="number" id="plateH" value="300"></label>
+  <br><br>
+
+  <h3>Parts to Cut</h3>
+  <div id="partsList">
+    <div class="part">
+      Width: <input type="number" class="partW" value="100">
+      Height: <input type="number" class="partH" value="200">
+      Qty: <input type="number" class="partQ" value="2">
+    </div>
+  </div>
+  <button id="addPartBtn">➕ Add Another Part</button>
+  <br><br>
+
+  <button id="generateBtn">Generate Layout</button>
+  <br>
+  <canvas id="layoutCanvas" width="800" height="500"></canvas>
+  <div id="plateSummary"></div>
+
+  <script>
+    // ------------------------------
+    // Rectangle & MaxRectsBinPack
+    // ------------------------------
+    function Rectangle(x, y, w, h) {
+      this.x = x;
+      this.y = y;
+      this.w = w;
+      this.h = h;
+    }
+
+    function MaxRectsBinPack(width, height) {
+      this.binWidth = width;
+      this.binHeight = height;
+      this.usedRectangles = [];
+      this.freeRectangles = [new Rectangle(0, 0, width, height)];
+
+      this.insert = function(w, h, allowRotate) {
+        if (allowRotate === undefined) allowRotate = true;
+        var bestNode = null;
+        var bestShortSideFit = Infinity;
+        var bestLongSideFit = Infinity;
+
+        for (var i = 0; i < this.freeRectangles.length; i++) {
+          var fr = this.freeRectangles[i];
+
+          // Try without rotation
+          if (fr.w >= w && fr.h >= h) {
+            var leftoverHoriz = Math.abs(fr.w - w);
+            var leftoverVert = Math.abs(fr.h - h);
+            var shortSideFit = Math.min(leftoverHoriz, leftoverVert);
+            var longSideFit = Math.max(leftoverHoriz, leftoverVert);
+            if (shortSideFit < bestShortSideFit || (shortSideFit === bestShortSideFit && longSideFit < bestLongSideFit)) {
+              bestNode = new Rectangle(fr.x, fr.y, w, h);
+              bestShortSideFit = shortSideFit;
+              bestLongSideFit = longSideFit;
+            }
+          }
+
+          // Try with rotation
+          if (allowRotate && fr.w >= h && fr.h >= w) {
+            var leftoverHoriz = Math.abs(fr.w - h);
+            var leftoverVert = Math.abs(fr.h - w);
+            var shortSideFit = Math.min(leftoverHoriz, leftoverVert);
+            var longSideFit = Math.max(leftoverHoriz, leftoverVert);
+            if (shortSideFit < bestShortSideFit || (shortSideFit === bestShortSideFit && longSideFit < bestLongSideFit)) {
+              bestNode = new Rectangle(fr.x, fr.y, h, w);
+              bestShortSideFit = shortSideFit;
+              bestLongSideFit = longSideFit;
+            }
+          }
+        }
+
+        if (bestNode) this.placeRect(bestNode);
+        return bestNode;
+      };
+
+      this.placeRect = function(node) {
+        for (var i = 0; i < this.freeRectangles.length; i++) {
+          if (this.splitFreeNode(this.freeRectangles[i], node)) {
+            this.freeRectangles.splice(i, 1);
+            i--;
+          }
+        }
+        this.pruneFreeList();
+        this.usedRectangles.push(node);
+      };
+
+      this.splitFreeNode = function(freeNode, usedNode) {
+        if (usedNode.x >= freeNode.x + freeNode.w || usedNode.x + usedNode.w <= freeNode.x ||
+            usedNode.y >= freeNode.y + freeNode.h || usedNode.y + usedNode.h <= freeNode.y) return false;
+
+        if (usedNode.x < freeNode.x + freeNode.w && usedNode.x + usedNode.w > freeNode.x) {
+          if (usedNode.y > freeNode.y && usedNode.y < freeNode.y + freeNode.h)
+            this.freeRectangles.push(new Rectangle(freeNode.x, freeNode.y, freeNode.w, usedNode.y - freeNode.y));
+          if (usedNode.y + usedNode.h < freeNode.y + freeNode.h)
+            this.freeRectangles.push(new Rectangle(freeNode.x, usedNode.y + usedNode.h, freeNode.w, freeNode.y + freeNode.h - (usedNode.y + usedNode.h)));
+        }
+        if (usedNode.y < freeNode.y + freeNode.h && usedNode.y + usedNode.h > freeNode.y) {
+          if (usedNode.x > freeNode.x && usedNode.x < freeNode.x + freeNode.w)
+            this.freeRectangles.push(new Rectangle(freeNode.x, freeNode.y, usedNode.x - freeNode.x, freeNode.h));
+          if (usedNode.x + usedNode.w < freeNode.x + freeNode.w)
+            this.freeRectangles.push(new Rectangle(usedNode.x + usedNode.w, freeNode.y, freeNode.x + freeNode.w - (usedNode.x + usedNode.w), freeNode.h));
+        }
+        return true;
+      };
+
+      this.pruneFreeList = function() {
+        for (var i = 0; i < this.freeRectangles.length; i++) {
+          for (var j = i + 1; j < this.freeRectangles.length; j++) {
+            if (this.isContainedIn(this.freeRectangles[i], this.freeRectangles[j])) { this.freeRectangles.splice(i, 1); i--; break; }
+            if (this.isContainedIn(this.freeRectangles[j], this.freeRectangles[i])) { this.freeRectangles.splice(j, 1); j--; }
+          }
+        }
+      };
+
+      this.isContainedIn = function(a, b) {
+        return a.x >= b.x && a.y >= b.y && a.x + a.w <= b.x + b.w && a.y + a.h <= b.y + b.h;
+      };
+    }
+
+    // ------------------------------
+    // UI functions
+    // ------------------------------
+    function addPart() {
+      var div = document.createElement('div');
+      div.className = 'part';
+      div.innerHTML = 'Width: <input type="number" class="partW" value="100">' +
+                      ' Height: <input type="number" class="partH" value="100">' +
+                      ' Qty: <input type="number" class="partQ" value="1">';
+      document.getElementById('partsList').appendChild(div);
+    }
+
+    function generateLayout() {
+      var plateW = parseInt(document.getElementById('plateW').value);
+      var plateH = parseInt(document.getElementById('plateH').value);
+      var bin = new MaxRectsBinPack(plateW, plateH);
+
+      var parts = [];
+      var partDivs = document.querySelectorAll('#partsList .part');
+      for (var i = 0; i < partDivs.length; i++) {
+        var w = parseInt(partDivs[i].querySelector('.partW').value);
+        var h = parseInt(partDivs[i].querySelector('.partH').value);
+        var q = parseInt(partDivs[i].querySelector('.partQ').value);
+        parts.push({w: w, h: h, qty: q});
+      }
+
+      var placedParts = [];
+      var totalUsedArea = 0;
+
+      for (var i = 0; i < parts.length; i++) {
+        var part = parts[i];
+        for (var j = 0; j < part.qty; j++) {
+          var node = bin.insert(part.w, part.h, true);
+          if (node) {
+            placedParts.push(node);
+            totalUsedArea += node.w * node.h;
+          }
+        }
+      }
+
+      drawLayout(plateW, plateH, placedParts);
+
+      // Show summary
+      var summaryHTML = 'Total Parts Placed: ' + placedParts.length + '<br>';
+      summaryHTML += 'Total Plate Area Used: ' + totalUsedArea + ' (Width x Height units)<br>';
+      summaryHTML += '<u>Part Details:</u><br>';
+      for (var k = 0; k < placedParts.length; k++) {
+        var r = placedParts[k];
+        summaryHTML += 'Part ' + (k+1) + ': (' + r.w + ' x ' + r.h + ') at (x:' + r.x + ', y:' + r.y + ')<br>';
+      }
+      document.getElementById('plateSummary').innerHTML = summaryHTML;
+    }
+
+    function drawLayout(plateW, plateH, placedParts) {
+      var canvas = document.getElementById('layoutCanvas');
+      var ctx = canvas.getContext('2d');
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      var scaleX = canvas.width / plateW;
+      var scaleY = canvas.height / plateH;
+      var scale = Math.min(scaleX, scaleY);
+
+      ctx.strokeStyle = '#000';
+      ctx.strokeRect(0, 0, plateW * scale, plateH * scale);
+
+      for (var i = 0; i < placedParts.length; i++) {
+        var r = placedParts[i];
+        ctx.fillStyle = 'hsl(' + Math.random() * 360 + ',70%,70%)';
+        ctx.fillRect(r.x * scale, r.y * scale, r.w * scale, r.h * scale);
+        ctx.strokeStyle = '#333';
+        ctx.strokeRect(r.x * scale, r.y * scale, r.w * scale, r.h * scale);
+        ctx.fillStyle = '#000';
+        ctx.font = '10px Arial';
+        ctx.fillText('(' + r.w + ' x ' + r.h + ')', r.x * scale + 4, r.y * scale + 12);
+      }
+    }
+
+    // ------------------------------
+    // Event listeners
+    // ------------------------------
+    document.getElementById('addPartBtn').addEventListener('click', addPart);
+    document.getElementById('generateBtn').addEventListener('click', generateLayout);
+  </script>
+</body>
+</html>
