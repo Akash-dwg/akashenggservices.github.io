@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Project Management</title>
+  <style>
+    /* Scoped styles inside container */
+    #pm-container {
+      font-family: Arial, sans-serif;
+      background: #f4f6f9;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+      max-width: 1200px;
+      margin: 20px auto;
+    }
+    #pm-container h1 {
+      text-align: center;
+      margin-bottom: 20px;
+      color: #333;
+    }
+    #pm-form {
+      margin-bottom: 20px;
+    }
+    #pm-form .form-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+    #pm-form input {
+      flex: 1;
+      padding: 8px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+    }
+    #pm-form button {
+      background: #007bff;
+      color: white;
+      padding: 10px 16px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    #pm-form button:hover {
+      background: #0056b3;
+    }
+    #pm-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    #pm-table thead {
+      background: #007bff;
+      color: white;
+    }
+    #pm-table th, #pm-table td {
+      border: 1px solid #ddd;
+      padding: 8px;
+      text-align: center;
+    }
+    #pm-table tbody tr:nth-child(even) {
+      background: #f9f9f9;
+    }
+    .pm-btn {
+      padding: 5px 10px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      color: white;
+    }
+    .pm-delete-btn {
+      background: #dc3545;
+    }
+    .pm-delete-btn:hover {
+      background: #a71d2a;
+    }
+    .pm-edit-btn {
+      background: #28a745;
+    }
+    .pm-edit-btn:hover {
+      background: #1e7e34;
+    }
+  </style>
+</head>
+<body>
+    <a href="index.html">← Home</a>
+  <div id="pm-container">
+    <h1>Project Management Dashboard</h1>
+
+    <!-- Form Section -->
+    <form id="pm-form">
+      <div class="form-row">
+        <input type="text" id="pm-clientName" placeholder="Client Name" required>
+        <input type="text" id="pm-poNo" placeholder="Purchase Order No." required>
+        <input type="text" id="pm-description" placeholder="Description">
+        <input type="number" id="pm-quantity" placeholder="Quantity" min="1">
+      </div>
+
+      <div class="form-row">
+        <input type="text" id="pm-materials" placeholder="Materials Purchase">
+        <input type="text" id="pm-docs" placeholder="Documentation">
+        <input type="text" id="pm-qc" placeholder="Quality Check">
+        <input type="text" id="pm-delivery" placeholder="Delivery Status">
+        <input type="text" id="pm-remarks" placeholder="Remarks">
+      </div>
+
+      <button type="submit" id="pm-submitBtn">Add Project</button>
+    </form>
+
+    <!-- Table Section -->
+    <table id="pm-table">
+      <thead>
+        <tr>
+          <th>Client Name</th>
+          <th>PO No.</th>
+          <th>Description</th>
+          <th>Quantity</th>
+          <th>Materials</th>
+          <th>Documentation</th>
+          <th>Quality Check</th>
+          <th>Delivery</th>
+          <th>Remarks</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <!-- Projects will appear here -->
+      </tbody>
+    </table>
+  </div>
+
+  <script>
+    (function() {
+      const form = document.getElementById("pm-form");
+      const tableBody = document.querySelector("#pm-table tbody");
+      const submitBtn = document.getElementById("pm-submitBtn");
+
+      // Load saved projects from localStorage
+      let projects = JSON.parse(localStorage.getItem("pm-projects")) || [];
+      let editIndex = null; // Track project being edited
+      renderProjects();
+
+      // Add or update project
+      form.addEventListener("submit", function(e) {
+        e.preventDefault();
+
+        const project = {
+          clientName: document.getElementById("pm-clientName").value,
+          poNo: document.getElementById("pm-poNo").value,
+          description: document.getElementById("pm-description").value,
+          quantity: document.getElementById("pm-quantity").value,
+          materials: document.getElementById("pm-materials").value,
+          docs: document.getElementById("pm-docs").value,
+          qc: document.getElementById("pm-qc").value,
+          delivery: document.getElementById("pm-delivery").value,
+          remarks: document.getElementById("pm-remarks").value
+        };
+
+        if (editIndex === null) {
+          // Add new
+          projects.push(project);
+        } else {
+          // Update existing
+          projects[editIndex] = project;
+          editIndex = null;
+          submitBtn.textContent = "Add Project";
+        }
+
+        saveProjects();
+        renderProjects();
+        form.reset();
+      });
+
+      // Save to localStorage
+      function saveProjects() {
+        localStorage.setItem("pm-projects", JSON.stringify(projects));
+      }
+
+      // Render projects in table
+      function renderProjects() {
+        tableBody.innerHTML = "";
+        projects.forEach((p, index) => {
+          const row = document.createElement("tr");
+          row.innerHTML = `
+            <td>${p.clientName}</td>
+            <td>${p.poNo}</td>
+            <td>${p.description}</td>
+            <td>${p.quantity}</td>
+            <td>${p.materials}</td>
+            <td>${p.docs}</td>
+            <td>${p.qc}</td>
+            <td>${p.delivery}</td>
+            <td>${p.remarks}</td>
+            <td>
+              <button class="pm-btn pm-edit-btn" data-index="${index}">Edit</button>
+              <button class="pm-btn pm-delete-btn" data-index="${index}">Delete</button>
+            </td>
+          `;
+          tableBody.appendChild(row);
+        });
+
+        // Attach edit events
+        document.querySelectorAll(".pm-edit-btn").forEach(btn => {
+          btn.addEventListener("click", function() {
+            editIndex = this.getAttribute("data-index");
+            loadProjectIntoForm(projects[editIndex]);
+            submitBtn.textContent = "Update Project";
+          });
+        });
+
+        // Attach delete events
+        document.querySelectorAll(".pm-delete-btn").forEach(btn => {
+          btn.addEventListener("click", function() {
+            const i = this.getAttribute("data-index");
+            projects.splice(i, 1);
+            saveProjects();
+            renderProjects();
+          });
+        });
+      }
+
+      // Load selected project into form
+      function loadProjectIntoForm(project) {
+        document.getElementById("pm-clientName").value = project.clientName;
+        document.getElementById("pm-poNo").value = project.poNo;
+        document.getElementById("pm-description").value = project.description;
+        document.getElementById("pm-quantity").value = project.quantity;
+        document.getElementById("pm-materials").value = project.materials;
+        document.getElementById("pm-docs").value = project.docs;
+        document.getElementById("pm-qc").value = project.qc;
+        document.getElementById("pm-delivery").value = project.delivery;
+        document.getElementById("pm-remarks").value = project.remarks;
+      }
+    })();
+  </script>
+</body>
+</html>
