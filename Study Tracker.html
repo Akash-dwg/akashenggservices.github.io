@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>SSC JE ME Study Tracker</title>
+  <style>
+    #st-container {
+      font-family: Arial, sans-serif;
+      background: #f4f6f9;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+      max-width: 1100px;
+      margin: 20px auto;
+    }
+    #st-container h1 {
+      text-align: center;
+      margin-bottom: 20px;
+      color: #333;
+    }
+    #st-form {
+      margin-bottom: 20px;
+    }
+    #st-form .form-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+    #st-form input {
+      flex: 1;
+      padding: 8px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+    }
+    #st-form button {
+      background: #007bff;
+      color: white;
+      padding: 10px 16px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    #st-form button:hover { background: #0056b3; }
+    #st-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    #st-table thead {
+      background: #007bff;
+      color: white;
+    }
+    #st-table th, #st-table td {
+      border: 1px solid #ddd;
+      padding: 8px;
+      text-align: center;
+    }
+    #st-table tbody tr:nth-child(even) { background: #f9f9f9; }
+    .st-btn {
+      padding: 5px 8px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      color: white;
+      margin: 2px;
+    }
+    .st-delete-btn { background: #dc3545; }
+    .st-delete-btn:hover { background: #a71d2a; }
+    .st-edit-btn { background: #28a745; }
+    .st-edit-btn:hover { background: #1e7e34; }
+    .st-move-up, .st-move-down { background: #6c757d; }
+    .st-progress {
+      width: 100%;
+      background: #e9ecef;
+      border-radius: 8px;
+      overflow: hidden;
+      height: 18px;
+    }
+    .st-progress-bar {
+      height: 18px;
+      background: #28a745;
+      text-align: center;
+      font-size: 12px;
+      color: white;
+      line-height: 18px;
+    }
+    .filter-input {
+      width: 95%;
+      padding: 4px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      font-size: 12px;
+    }
+    .export-btn {
+      margin: 10px 5px 10px 0;
+      padding: 8px 16px;
+      border: none;
+      border-radius: 6px;
+      color: white;
+      cursor: pointer;
+    }
+    #exportPdfBtn { background: #17a2b8; }
+    #exportPdfBtn:hover { background: #11707f; }
+    #exportExcelBtn { background: #ffc107; color: black; }
+    #exportExcelBtn:hover { background: #e0a800; }
+  </style>
+</head>
+<body>
+  <a href="index.html">← Home</a>
+  <div id="st-container">
+    <h1>SSC JE ME Study Tracker</h1>
+
+    <!-- Form Section -->
+    <form id="st-form">
+      <div class="form-row">
+        <input type="text" id="st-subject" placeholder="Subject / Topic" required>
+        <input type="number" id="st-progressInput" placeholder="Progress %" min="0" max="100" required>
+        <input type="text" id="st-remarks" placeholder="Remarks / Notes">
+      </div>
+      <button type="submit" id="st-submitBtn">Add Topic</button>
+    </form>
+
+    <!-- Export Buttons -->
+    <button id="exportPdfBtn" class="export-btn">Export as PDF</button>
+    <button id="exportExcelBtn" class="export-btn">Export as Excel</button>
+
+    <!-- Table Section -->
+    <table id="st-table">
+      <thead>
+        <tr>
+          <th>Subject / Topic<br><input type="text" class="filter-input" data-col="0"></th>
+          <th>Progress<br><input type="text" class="filter-input" data-col="1"></th>
+          <th>Remarks<br><input type="text" class="filter-input" data-col="2"></th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <!-- jsPDF + SheetJS -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+  <script>
+    (function() {
+      const form = document.getElementById("st-form");
+      const tableBody = document.querySelector("#st-table tbody");
+      const submitBtn = document.getElementById("st-submitBtn");
+      const exportPdfBtn = document.getElementById("exportPdfBtn");
+      const exportExcelBtn = document.getElementById("exportExcelBtn");
+
+      let topics = JSON.parse(localStorage.getItem("st-topics")) || [];
+      let editIndex = null;
+
+      renderTopics();
+
+      // Add or update topic
+      form.addEventListener("submit", function(e) {
+        e.preventDefault();
+        const subject = document.getElementById("st-subject").value;
+        const progress = parseInt(document.getElementById("st-progressInput").value) || 0;
+        const remarks = document.getElementById("st-remarks").value;
+        const topic = { subject, progress, remarks };
+
+        if (editIndex === null) {
+          topics.push(topic);
+        } else {
+          topics[editIndex] = topic;
+          editIndex = null;
+          submitBtn.textContent = "Add Topic";
+        }
+        saveTopics();
+        renderTopics();
+        form.reset();
+      });
+
+      // Save to localStorage
+      function saveTopics() {
+        localStorage.setItem("st-topics", JSON.stringify(topics));
+      }
+
+      // Render table
+      function renderTopics() {
+        tableBody.innerHTML = "";
+        topics.forEach((t, index) => {
+          const row = document.createElement("tr");
+          row.innerHTML = `
+            <td>${t.subject}</td>
+            <td>
+              <div class="st-progress">
+                <div class="st-progress-bar" style="width:${t.progress}%">${t.progress}%</div>
+              </div>
+            </td>
+            <td>${t.remarks || ""}</td>
+            <td>
+              <button class="st-btn st-edit-btn" data-index="${index}">Edit</button>
+              <button class="st-btn st-delete-btn" data-index="${index}">Delete</button>
+              <button class="st-btn st-move-up" data-index="${index}">↑</button>
+              <button class="st-btn st-move-down" data-index="${index}">↓</button>
+            </td>
+          `;
+          tableBody.appendChild(row);
+        });
+
+        // Edit buttons
+        document.querySelectorAll(".st-edit-btn").forEach(btn => {
+          btn.addEventListener("click", function() {
+            editIndex = this.getAttribute("data-index");
+            loadTopicIntoForm(topics[editIndex]);
+            submitBtn.textContent = "Update Topic";
+          });
+        });
+
+        // Delete buttons
+        document.querySelectorAll(".st-delete-btn").forEach(btn => {
+          btn.addEventListener("click", function() {
+            const i = this.getAttribute("data-index");
+            topics.splice(i, 1);
+            saveTopics();
+            renderTopics();
+          });
+        });
+
+        // Move Up
+        document.querySelectorAll(".st-move-up").forEach(btn => {
+          btn.addEventListener("click", function() {
+            const i = parseInt(this.getAttribute("data-index"));
+            if (i > 0) {
+              [topics[i-1], topics[i]] = [topics[i], topics[i-1]];
+              saveTopics();
+              renderTopics();
+            }
+          });
+        });
+
+        // Move Down
+        document.querySelectorAll(".st-move-down").forEach(btn => {
+          btn.addEventListener("click", function() {
+            const i = parseInt(this.getAttribute("data-index"));
+            if (i < topics.length - 1) {
+              [topics[i+1], topics[i]] = [topics[i], topics[i+1]];
+              saveTopics();
+              renderTopics();
+            }
+          });
+        });
+      }
+
+      // Load selected topic into form
+      function loadTopicIntoForm(topic) {
+        document.getElementById("st-subject").value = topic.subject;
+        document.getElementById("st-progressInput").value = topic.progress;
+        document.getElementById("st-remarks").value = topic.remarks || "";
+      }
+
+      // Column Filters
+      document.querySelectorAll(".filter-input").forEach(input => {
+        input.addEventListener("keyup", function() {
+          const col = this.getAttribute("data-col");
+          const filter = this.value.toLowerCase();
+          Array.from(tableBody.rows).forEach(row => {
+            const cell = row.cells[col].innerText.toLowerCase();
+            row.style.display = cell.includes(filter) ? "" : "none";
+          });
+        });
+      });
+
+      // Export to PDF
+      exportPdfBtn.addEventListener("click", function() {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+        let y = 20;
+        doc.setFontSize(14);
+        doc.text("SSC JE ME Study Tracker", 70, 10);
+
+        doc.setFontSize(10);
+        doc.text("Subject / Topic | Progress | Remarks", 10, y);
+        y += 6;
+
+        topics.forEach(t => {
+          doc.text`(${t.subject} | ${t.progress}% | ${t.remarks || ""}, 10, y)`;
+          y += 6;
+          if (y > 280) { doc.addPage(); y = 20; }
+        });
+
+        doc.save("Study_Tracker.pdf");
+      });
+
+      // Export to Excel
+      exportExcelBtn.addEventListener("click", function() {
+        const wsData = [["Subject / Topic", "Progress", "Remarks"]];
+        topics.forEach(t => {
+          wsData.push([t.subject, t.progress + "%", t.remarks || ""]);
+        });
+        const ws = XLSX.utils.aoa_to_sheet(wsData);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Study Tracker");
+        XLSX.writeFile(wb, "Study_Tracker.xlsx");
+      });
+    })();
+  </script>
+</body>
+</html>
